@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sheets Tab Manager</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <header class="header">
+    <h1 class="header__title">Sheets Tab Manager</h1>
+    <div class="header__actions">
+      <button id="btn-refresh" class="btn btn--icon" title="更新">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <path d="M13.65 2.35A8 8 0 1 0 16 8h-2a6 6 0 1 1-1.76-4.24L10 6h6V0l-2.35 2.35z" fill="currentColor"/>
+        </svg>
+      </button>
+      <button id="btn-add" class="btn btn--primary" title="新規シート追加">+ 追加</button>
+    </div>
+  </header>
+
+  <div id="loading" class="loading" hidden>
+    <div class="loading__spinner"></div>
+    <p>読み込み中...</p>
+  </div>
+
+  <div id="error" class="error" hidden>
+    <p id="error-message"></p>
+    <button id="btn-retry" class="btn btn--secondary">再試行</button>
+  </div>
+
+  <div id="auth-required" class="auth-required" hidden>
+    <p>Google アカウントにログインしてください。</p>
+    <button id="btn-auth" class="btn btn--primary">ログイン</button>
+  </div>
+
+  <div id="not-sheets" class="not-sheets" hidden>
+    <p>Google Sheets のページを開いてください。</p>
+  </div>
+
+  <ul id="sheet-list" class="sheet-list"></ul>
+
+  <div id="bulk-bar" class="bulk-bar" hidden>
+    <span id="bulk-count" class="bulk-bar__count"></span>
+    <div class="bulk-bar__actions">
+      <button id="btn-bulk-move-top" class="btn btn--small btn--secondary" title="先頭へ移動">先頭へ</button>
+      <button id="btn-bulk-move-bottom" class="btn btn--small btn--secondary" title="末尾へ移動">末尾へ</button>
+      <button id="btn-bulk-delete" class="btn btn--small btn--danger" title="一括削除">削除</button>
+      <button id="btn-bulk-deselect" class="btn btn--small btn--secondary" title="選択解除">解除</button>
+    </div>
+  </div>
+
+  <div id="color-picker" class="color-picker" hidden>
+    <div class="color-picker__colors"></div>
+    <button class="color-picker__clear">色をクリア</button>
+  </div>
+
+  <dialog id="confirm-dialog" class="confirm-dialog">
+    <p id="confirm-message"></p>
+    <div class="confirm-dialog__actions">
+      <button id="confirm-cancel" class="btn btn--secondary">キャンセル</button>
+      <button id="confirm-ok" class="btn btn--danger">削除</button>
+    </div>
+  </dialog>
+
+  <script type="module" src="./main.ts"></script>
+</body>
+</html>
