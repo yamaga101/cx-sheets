@@ -180,3 +180,44 @@ export async function duplicateSheet(
     },
   ]);
 }
+
+/** Batch reorder multiple sheets in a single API call */
+export async function batchReorder(
+  spreadsheetId: string,
+  moves: { sheetId: number; newIndex: number }[]
+): Promise<void> {
+  const requests: SheetRequest[] = moves.map(({ sheetId, newIndex }) => ({
+    updateSheetProperties: {
+      properties: { sheetId, index: newIndex },
+      fields: "index",
+    },
+  }));
+  await batchUpdate(spreadsheetId, requests);
+}
+
+/** Batch delete multiple sheets in a single API call */
+export async function batchDelete(
+  spreadsheetId: string,
+  sheetIds: number[]
+): Promise<void> {
+  const requests: SheetRequest[] = sheetIds.map((sheetId) => ({
+    deleteSheet: { sheetId },
+  }));
+  await batchUpdate(spreadsheetId, requests);
+}
+
+/** Toggle sheet visibility (hidden/visible) */
+export async function toggleSheetVisibility(
+  spreadsheetId: string,
+  sheetId: number,
+  hidden: boolean
+): Promise<void> {
+  await batchUpdate(spreadsheetId, [
+    {
+      updateSheetProperties: {
+        properties: { sheetId, hidden },
+        fields: "hidden",
+      },
+    },
+  ]);
+}

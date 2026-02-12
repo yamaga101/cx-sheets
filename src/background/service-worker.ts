@@ -24,20 +24,11 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   if (!tab.url) return;
 
   const isSheets = isGoogleSheetsUrl(tab.url);
-  await chrome.action.setIcon({
-    tabId,
-    path: isSheets
-      ? {
-          16: "src/icons/icon-16.png",
-          48: "src/icons/icon-48.png",
-          128: "src/icons/icon-128.png",
-        }
-      : {
-          16: "src/icons/icon-16.png",
-          48: "src/icons/icon-48.png",
-          128: "src/icons/icon-128.png",
-        },
-  });
+  if (isSheets) {
+    await chrome.action.enable(tabId);
+  } else {
+    await chrome.action.disable(tabId);
+  }
 
   // Notify side panel of URL change
   if (changeInfo.status === "complete" && isSheets) {
