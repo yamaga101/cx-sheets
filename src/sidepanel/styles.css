@@ -32,10 +32,21 @@ body {
   z-index: 10;
 }
 
+.header__left {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
 .header__title {
   font-size: 16px;
   font-weight: 600;
   color: #1a73e8;
+}
+
+.header__count {
+  font-size: 11px;
+  color: #9aa0a6;
 }
 
 .header__actions {
@@ -215,6 +226,11 @@ body {
 
 .sheet-item--drag-over {
   border-top: 2px solid #1a73e8;
+}
+
+.sheet-item--focused {
+  outline: 2px solid #1a73e8;
+  outline-offset: -2px;
 }
 
 /* Hidden sheet */

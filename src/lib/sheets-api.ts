@@ -221,3 +221,37 @@ export async function toggleSheetVisibility(
     },
   ]);
 }
+
+/** Batch change tab color for multiple sheets in a single API call */
+export async function batchChangeTabColor(
+  spreadsheetId: string,
+  sheetIds: number[],
+  color: TabColor | null
+): Promise<void> {
+  const tabColorStyle = color
+    ? { rgbColor: { red: color.red, green: color.green, blue: color.blue } }
+    : { rgbColor: {} };
+
+  const requests: SheetRequest[] = sheetIds.map((sheetId) => ({
+    updateSheetProperties: {
+      properties: { sheetId, tabColorStyle } as any,
+      fields: "tabColorStyle",
+    },
+  }));
+  await batchUpdate(spreadsheetId, requests);
+}
+
+/** Batch toggle visibility for multiple sheets */
+export async function batchToggleVisibility(
+  spreadsheetId: string,
+  sheetIds: number[],
+  hidden: boolean
+): Promise<void> {
+  const requests: SheetRequest[] = sheetIds.map((sheetId) => ({
+    updateSheetProperties: {
+      properties: { sheetId, hidden },
+      fields: "hidden",
+    },
+  }));
+  await batchUpdate(spreadsheetId, requests);
+}

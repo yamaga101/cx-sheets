@@ -8,6 +8,8 @@ import {
   duplicateSheet,
   batchReorder,
   batchDelete,
+  batchChangeTabColor,
+  batchToggleVisibility,
   toggleSheetVisibility,
 } from "../lib/sheets-api";
 import { getAccessToken, getAccessTokenSilent } from "../lib/auth";
@@ -18,7 +20,6 @@ import { PRESET_COLORS } from "../lib/types";
 
 const TOAST_DURATION_MS = 2000;
 
-// SVG icon templates
 const ICON_DUPLICATE = `<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
   <path d="M11 1H3a1 1 0 0 0-1 1v9h1V2h8V1zm2 3H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V5a1 1 0 0 0-1-1zm0 11H5V5h8v10z"/>
 </svg>`;
@@ -51,6 +52,7 @@ const bulkBarEl = document.getElementById("bulk-bar") as HTMLDivElement;
 const bulkCountEl = document.getElementById("bulk-count") as HTMLSpanElement;
 const toastContainer = document.getElementById("toast-container") as HTMLDivElement;
 const searchInput = document.getElementById("search-input") as HTMLInputElement;
+const sheetCountEl = document.getElementById("sheet-count") as HTMLSpanElement;
 
 const btnRefresh = document.getElementById("btn-refresh") as HTMLButtonElement;
 const btnAdd = document.getElementById("btn-add") as HTMLButtonElement;
@@ -61,6 +63,8 @@ const btnBulkMoveTop = document.getElementById("btn-bulk-move-top") as HTMLButto
 const btnBulkMoveBottom = document.getElementById("btn-bulk-move-bottom") as HTMLButtonElement;
 const btnBulkDelete = document.getElementById("btn-bulk-delete") as HTMLButtonElement;
 const btnBulkDeselect = document.getElementById("btn-bulk-deselect") as HTMLButtonElement;
+const btnBulkColor = document.getElementById("btn-bulk-color") as HTMLButtonElement;
+const btnBulkVisibility = document.getElementById("btn-bulk-visibility") as HTMLButtonElement;
 
 // ─── State ──────────────────────────────────────────────────────
 
@@ -68,8 +72,10 @@ let currentSpreadsheetId: string | null = null;
 let sheets: Sheet[] = [];
 let selectedSheetIds: Set<number> = new Set();
 let lastClickedIndex: number | null = null;
+let focusedIndex: number | null = null;
 let dragSourceIndex: number | null = null;
 let activeColorPickerSheetId: number | null = null;
+let bulkColorMode = false;
 let pendingConfirmResolve: ((value: boolean) => void) | null = null;
 let currentSearchQuery = "";
 
@@ -108,6 +114,12 @@ function updateBulkBar(): void {
   bulkCountEl.textContent = `${count} 件選択中`;
 }
 
+function updateSheetCount(): void {
+  const hidden = sheets.filter((s) => s.properties.hidden).length;
+  const total = sheets.length;
+  sheetCountEl.textContent = hidden > 0 ? `${total} シート (${hidden} 非表示)` : `${total} シート`;
+}
+
 // ─── Search / Filter ────────────────────────────────────────────
 
 function applySearchFilter(): void {
@@ -120,16 +132,32 @@ function applySearchFilter(): void {
   }
 }
 
+// ─── Navigation (Click-to-Jump) ─────────────────────────────────
+
+async function navigateToSheet(sheetId: number): Promise<void> {
+  if (!currentSpreadsheetId) return;
+  const url = `https://docs.google.com/spreadsheets/d/${currentSpreadsheetId}/edit#gid=${sheetId}`;
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (tab?.id) {
+    await chrome.tabs.update(tab.id, { url });
+  }
+}
+
 // ─── Selection ──────────────────────────────────────────────────
 
 function handleItemClick(sheetId: number, index: number, e: MouseEvent): void {
   if (e.metaKey || e.ctrlKey) {
+    // Toggle selection
     if (selectedSheetIds.has(sheetId)) {
       selectedSheetIds.delete(sheetId);
     } else {
       selectedSheetIds.add(sheetId);
     }
+    lastClickedIndex = index;
+    focusedIndex = index;
+    updateSelectionUI();
   } else if (e.shiftKey && lastClickedIndex !== null) {
+    // Range selection
     const start = Math.min(lastClickedIndex, index);
     const end = Math.max(lastClickedIndex, index);
     for (let i = start; i <= end; i++) {
@@ -137,17 +165,14 @@ function handleItemClick(sheetId: number, index: number, e: MouseEvent): void {
         selectedSheetIds.add(sheets[i].properties.sheetId);
       }
     }
+    focusedIndex = index;
+    updateSelectionUI();
   } else {
-    if (selectedSheetIds.size === 1 && selectedSheetIds.has(sheetId)) {
-      selectedSheetIds.clear();
-    } else {
-      selectedSheetIds.clear();
-      selectedSheetIds.add(sheetId);
-    }
+    // Single click = navigate to sheet
+    focusedIndex = index;
+    updateFocusUI();
+    navigateToSheet(sheetId);
   }
-
-  lastClickedIndex = index;
-  updateSelectionUI();
 }
 
 function updateSelectionUI(): void {
@@ -157,6 +182,15 @@ function updateSelectionUI(): void {
     item.classList.toggle("sheet-item--selected", selectedSheetIds.has(id));
   }
   updateBulkBar();
+  updateFocusUI();
+}
+
+function updateFocusUI(): void {
+  const items = sheetListEl.querySelectorAll(".sheet-item");
+  for (const item of items) {
+    const idx = Number((item as HTMLElement).dataset.index);
+    item.classList.toggle("sheet-item--focused", idx === focusedIndex);
+  }
 }
 
 function clearSelection(): void {
@@ -224,6 +258,7 @@ function initColorPicker(currentColor?: TabColor | null): void {
 
 function showColorPicker(sheetId: number, anchorEl: HTMLElement): void {
   activeColorPickerSheetId = sheetId;
+  bulkColorMode = false;
 
   const sheet = sheets.find((s) => s.properties.sheetId === sheetId);
   const currentColor = sheet?.properties.tabColorStyle?.rgbColor ?? null;
@@ -235,20 +270,81 @@ function showColorPicker(sheetId: number, anchorEl: HTMLElement): void {
   colorPickerEl.style.left = `${Math.max(8, rect.left - 60)}px`;
 }
 
+function showBulkColorPicker(anchorEl: HTMLElement): void {
+  bulkColorMode = true;
+  activeColorPickerSheetId = null;
+  initColorPicker(null);
+
+  colorPickerEl.hidden = false;
+  const rect = anchorEl.getBoundingClientRect();
+  colorPickerEl.style.top = `${rect.top - 160}px`;
+  colorPickerEl.style.left = `${Math.max(8, rect.left)}px`;
+}
+
 function hideColorPicker(): void {
   colorPickerEl.hidden = true;
   activeColorPickerSheetId = null;
+  bulkColorMode = false;
 }
 
 async function handleColorSelect(color: TabColor | null): Promise<void> {
-  if (activeColorPickerSheetId === null || !currentSpreadsheetId) return;
+  if (!currentSpreadsheetId) return;
 
+  if (bulkColorMode) {
+    // Bulk color change
+    hideColorPicker();
+    if (selectedSheetIds.size === 0) return;
+
+    const ids = [...selectedSheetIds];
+
+    // Optimistic update
+    const oldColors = new Map<number, Sheet["properties"]["tabColorStyle"]>();
+    for (const id of ids) {
+      const sheet = sheets.find((s) => s.properties.sheetId === id);
+      if (sheet) {
+        oldColors.set(id, sheet.properties.tabColorStyle);
+        sheet.properties.tabColorStyle = color ? { rgbColor: color } : undefined;
+      }
+    }
+    renderSheets();
+
+    try {
+      await batchChangeTabColor(currentSpreadsheetId, ids, color);
+      showToast(`${ids.length} 件の色を変更しました`);
+    } catch (err) {
+      // Rollback
+      for (const [id, oldColor] of oldColors) {
+        const sheet = sheets.find((s) => s.properties.sheetId === id);
+        if (sheet) sheet.properties.tabColorStyle = oldColor;
+      }
+      renderSheets();
+      showToast(`色の変更に失敗しました: ${(err as Error).message}`, "error");
+    }
+    return;
+  }
+
+  // Single sheet color change
+  if (activeColorPickerSheetId === null) return;
+  const sheetId = activeColorPickerSheetId;
   hideColorPicker();
+
+  // Optimistic update
+  const sheet = sheets.find((s) => s.properties.sheetId === sheetId);
+  const oldColor = sheet?.properties.tabColorStyle;
+  if (sheet) {
+    sheet.properties.tabColorStyle = color ? { rgbColor: color } : undefined;
+    renderSheets();
+  }
+
   try {
-    await changeTabColor(currentSpreadsheetId, activeColorPickerSheetId, color);
+    await changeTabColor(currentSpreadsheetId, sheetId, color);
     showToast("色を変更しました");
-    await loadSheets();
   } catch (err) {
+    // Rollback
+    if (sheet) {
+      sheet.properties.tabColorStyle = oldColor;
+      renderSheets();
+    }
     showToast(`色の変更に失敗しました: ${(err as Error).message}`, "error");
   }
 }
@@ -289,6 +385,7 @@ function renderSheets(): void {
   showView("list");
   updateSelectionUI();
   applySearchFilter();
+  updateSheetCount();
 }
 
 function createSheetItem(
@@ -306,7 +403,7 @@ function createSheetItem(
   li.dataset.sheetTitle = title;
   li.draggable = true;
 
-  // Click for selection
+  // Click: navigate or select
   li.addEventListener("click", (e) => {
     const target = e.target as HTMLElement;
     if (target.closest(".sheet-item__btn, .sheet-item__color, .sheet-item__name-input, .sheet-item__visibility")) return;
@@ -347,7 +444,7 @@ function createSheetItem(
   nameSpan.textContent = title;
   nameSpan.addEventListener("dblclick", () => startRename(li, sheetId, title));
 
-  // Action buttons (icon-based)
+  // Action buttons
   const actions = document.createElement("div");
   actions.className = "sheet-item__actions";
 
@@ -361,8 +458,7 @@ function createSheetItem(
   actions.append(duplicateBtn, deleteBtn);
   li.append(handle, visibilityBtn, colorDot, nameSpan, actions);
 
-  // Drag events
-  setupDragEvents(li, index);
+  setupDragEvents(li);
 
   return li;
 }
@@ -396,13 +492,21 @@ function startRename(li: HTMLLIElement, sheetId: number, currentTitle: string): 
   const finishRename = async (): Promise<void> => {
     const newTitle = input.value.trim();
     if (newTitle && newTitle !== currentTitle && currentSpreadsheetId) {
+      // Optimistic update
+      nameSpan.textContent = newTitle;
+      li.dataset.sheetTitle = newTitle;
+      const sheet = sheets.find((s) => s.properties.sheetId === sheetId);
+      if (sheet) sheet.properties.title = newTitle;
+
       try {
         await renameSheet(currentSpreadsheetId, sheetId, newTitle);
-        nameSpan.textContent = newTitle;
         showToast("名前を変更しました");
       } catch (err) {
-        showToast(`リネームに失敗しました: ${(err as Error).message}`, "error");
+        // Rollback
         nameSpan.textContent = currentTitle;
+        li.dataset.sheetTitle = currentTitle;
+        if (sheet) sheet.properties.title = currentTitle;
+        showToast(`リネームに失敗しました: ${(err as Error).message}`, "error");
       }
     } else {
       nameSpan.textContent = currentTitle;
@@ -425,9 +529,18 @@ function startRename(li: HTMLLIElement, sheetId: number, currentTitle: string): 
   input.select();
 }
 
+function startRenameByIndex(index: number): void {
+  if (index < 0 || index >= sheets.length) return;
+  const sheet = sheets[index];
+  const item = sheetListEl.querySelector(`[data-sheet-id="${sheet.properties.sheetId}"]`) as HTMLLIElement | null;
+  if (item) {
+    startRename(item, sheet.properties.sheetId, sheet.properties.title);
+  }
+}
+
 // ─── Drag and Drop ──────────────────────────────────────────────
 
-function setupDragEvents(li: HTMLLIElement, index: number): void {
+function setupDragEvents(li: HTMLLIElement): void {
   li.addEventListener("dragstart", (e) => {
     const sheetId = Number(li.dataset.sheetId);
 
@@ -437,10 +550,11 @@ function setupDragEvents(li: HTMLLIElement, index: number): void {
       updateSelectionUI();
     }
 
-    dragSourceIndex = index;
+    // Use dataset.index to avoid stale closure
+    dragSourceIndex = Number(li.dataset.index);
     li.classList.add("sheet-item--dragging");
     e.dataTransfer!.effectAllowed = "move";
-    e.dataTransfer!.setData("text/plain", String(index));
+    e.dataTransfer!.setData("text/plain", li.dataset.index!);
   });
 
   li.addEventListener("dragend", () => {
@@ -514,12 +628,22 @@ async function handleDelete(sheetId: number, title: string): Promise<void> {
   );
   if (!confirmed) return;
 
+  // Optimistic update
+  const removedIndex = sheets.findIndex((s) => s.properties.sheetId === sheetId);
+  const removedSheet = sheets[removedIndex];
+  sheets.splice(removedIndex, 1);
+  selectedSheetIds.delete(sheetId);
+  renderSheets();
+
   try {
     await deleteSheet(currentSpreadsheetId, sheetId);
-    selectedSheetIds.delete(sheetId);
     showToast(`「${title}」を削除しました`);
-    await loadSheets();
   } catch (err) {
+    // Rollback
+    if (removedSheet) {
+      sheets.splice(removedIndex, 0, removedSheet);
+      renderSheets();
+    }
     showToast(`シートの削除に失敗しました: ${(err as Error).message}`, "error");
   }
 }
@@ -537,11 +661,24 @@ async function handleDuplicate(sheetId: number, title: string): Promise<void> {
 
 async function handleToggleVisibility(sheetId: number, title: string, hidden: boolean): Promise<void> {
   if (!currentSpreadsheetId) return;
+
+  // Optimistic update
+  const sheet = sheets.find((s) => s.properties.sheetId === sheetId);
+  const oldHidden = sheet?.properties.hidden;
+  if (sheet) {
+    sheet.properties.hidden = hidden;
+    renderSheets();
+  }
+
   try {
     await toggleSheetVisibility(currentSpreadsheetId, sheetId, hidden);
     showToast(hidden ? `「${title}」を非表示にしました` : `「${title}」を表示しました`);
-    await loadSheets();
   } catch (err) {
+    // Rollback
+    if (sheet) {
+      sheet.properties.hidden = oldHidden;
+      renderSheets();
+    }
     showToast(`表示切替に失敗しました: ${(err as Error).message}`, "error");
   }
 }
@@ -575,12 +712,13 @@ async function handleBulkMoveBottom(): Promise<void> {
     .filter((s) => selectedSheetIds.has(s.properties.sheetId))
     .sort((a, b) => a.properties.index - b.properties.index);
 
-  const bottomIndex = sheets.length - 1;
+  // Fix: calculate correct start index so sheets don't all go to same position
+  const startIndex = sheets.length - selectedSheets.length;
 
   try {
-    const moves = selectedSheets.map((s) => ({
+    const moves = selectedSheets.map((s, i) => ({
       sheetId: s.properties.sheetId,
-      newIndex: bottomIndex,
+      newIndex: startIndex + i,
     }));
     await batchReorder(currentSpreadsheetId, moves);
     showToast(`${selectedSheets.length} 件を末尾へ移動しました`);
@@ -600,13 +738,55 @@ async function handleBulkDelete(): Promise<void> {
   );
   if (!confirmed) return;
 
+  // Optimistic update
+  const removedSheets = sheets.filter((s) => selectedSheetIds.has(s.properties.sheetId));
+  sheets = sheets.filter((s) => !selectedSheetIds.has(s.properties.sheetId));
+  const removedIds = [...selectedSheetIds];
+  selectedSheetIds.clear();
+  renderSheets();
+
   try {
-    await batchDelete(currentSpreadsheetId, [...selectedSheetIds]);
+    await batchDelete(currentSpreadsheetId, removedIds);
     showToast(`${count} 件のシートを削除しました`);
-    selectedSheetIds.clear();
-    await loadSheets();
   } catch (err) {
+    // Rollback
+    sheets.push(...removedSheets);
+    sheets.sort((a, b) => a.properties.index - b.properties.index);
+    renderSheets();
     showToast(`一括削除に失敗しました: ${(err as Error).message}`, "error");
+  }
+}
+
+async function handleBulkToggleVisibility(): Promise<void> {
+  if (!currentSpreadsheetId || selectedSheetIds.size === 0) return;
+
+  const selectedSheets = sheets.filter((s) => selectedSheetIds.has(s.properties.sheetId));
+  // If any selected sheet is visible, hide all; otherwise show all
+  const anyVisible = selectedSheets.some((s) => !s.properties.hidden);
+  const newHidden = anyVisible;
+
+  // Optimistic update
+  const oldStates = new Map<number, boolean | undefined>();
+  for (const s of selectedSheets) {
+    oldStates.set(s.properties.sheetId, s.properties.hidden);
+    s.properties.hidden = newHidden;
+  }
+  renderSheets();
+
+  try {
+    await batchToggleVisibility(currentSpreadsheetId, [...selectedSheetIds], newHidden);
+    showToast(newHidden
+      ? `${selectedSheets.length} 件を非表示にしました`
+      : `${selectedSheets.length} 件を表示しました`
+    );
+  } catch (err) {
+    // Rollback
+    for (const [id, hidden] of oldStates) {
+      const sheet = sheets.find((s) => s.properties.sheetId === id);
+      if (sheet) sheet.properties.hidden = hidden;
+    }
+    renderSheets();
+    showToast(`表示切替に失敗しました: ${(err as Error).message}`, "error");
   }
 }
 
@@ -635,6 +815,123 @@ async function getCurrentTabUrl(): Promise<string | null> {
     return null;
   } catch {
     return null;
+  }
+}
+
+// ─── Keyboard Shortcuts ─────────────────────────────────────────
+
+function getVisibleItems(): HTMLLIElement[] {
+  return Array.from(sheetListEl.querySelectorAll<HTMLLIElement>(".sheet-item:not([hidden])"));
+}
+
+function handleKeydown(e: KeyboardEvent): void {
+  // Ignore when typing in an input
+  if ((e.target as HTMLElement).tagName === "INPUT") {
+    if (e.key === "Escape") {
+      (e.target as HTMLInputElement).blur();
+    }
+    return;
+  }
+
+  const visibleItems = getVisibleItems();
+  if (visibleItems.length === 0) return;
+
+  switch (e.key) {
+    case "/": {
+      e.preventDefault();
+      searchInput.focus();
+      break;
+    }
+
+    case "Escape": {
+      if (currentSearchQuery) {
+        searchInput.value = "";
+        currentSearchQuery = "";
+        applySearchFilter();
+      } else if (selectedSheetIds.size > 0) {
+        clearSelection();
+      }
+      break;
+    }
+
+    case "F2": {
+      e.preventDefault();
+      if (focusedIndex !== null) {
+        startRenameByIndex(focusedIndex);
+      }
+      break;
+    }
+
+    case "Delete":
+    case "Backspace": {
+      if (selectedSheetIds.size > 0) {
+        e.preventDefault();
+        handleBulkDelete();
+      } else if (focusedIndex !== null && focusedIndex < sheets.length) {
+        e.preventDefault();
+        const s = sheets[focusedIndex];
+        handleDelete(s.properties.sheetId, s.properties.title);
+      }
+      break;
+    }
+
+    case "a": {
+      if (e.metaKey || e.ctrlKey) {
+        e.preventDefault();
+        // Select all visible sheets
+        for (const item of visibleItems) {
+          selectedSheetIds.add(Number(item.dataset.sheetId));
+        }
+        updateSelectionUI();
+      }
+      break;
+    }
+
+    case "ArrowDown": {
+      e.preventDefault();
+      const currentFocusIdx = visibleItems.findIndex(
+        (item) => Number(item.dataset.index) === focusedIndex
+      );
+      const nextIdx = currentFocusIdx < visibleItems.length - 1 ? currentFocusIdx + 1 : 0;
+      focusedIndex = Number(visibleItems[nextIdx].dataset.index);
+      updateFocusUI();
+      visibleItems[nextIdx].scrollIntoView({ block: "nearest" });
+      break;
+    }
+
+    case "ArrowUp": {
+      e.preventDefault();
+      const currentFocusIdx2 = visibleItems.findIndex(
+        (item) => Number(item.dataset.index) === focusedIndex
+      );
+      const prevIdx = currentFocusIdx2 > 0 ? currentFocusIdx2 - 1 : visibleItems.length - 1;
+      focusedIndex = Number(visibleItems[prevIdx].dataset.index);
+      updateFocusUI();
+      visibleItems[prevIdx].scrollIntoView({ block: "nearest" });
+      break;
+    }
+
+    case "Enter": {
+      if (focusedIndex !== null && focusedIndex < sheets.length) {
+        navigateToSheet(sheets[focusedIndex].properties.sheetId);
+      }
+      break;
+    }
+
+    case " ": {
+      if (focusedIndex !== null && focusedIndex < sheets.length) {
+        e.preventDefault();
+        const sheetId = sheets[focusedIndex].properties.sheetId;
+        if (selectedSheetIds.has(sheetId)) {
+          selectedSheetIds.delete(sheetId);
+        } else {
+          selectedSheetIds.add(sheetId);
+        }
+        lastClickedIndex = focusedIndex;
+        updateSelectionUI();
+      }
+      break;
+    }
   }
 }
 
@@ -682,6 +979,8 @@ btnBulkMoveTop.addEventListener("click", () => handleBulkMoveTop());
 btnBulkMoveBottom.addEventListener("click", () => handleBulkMoveBottom());
 btnBulkDelete.addEventListener("click", () => handleBulkDelete());
 btnBulkDeselect.addEventListener("click", () => clearSelection());
+btnBulkColor.addEventListener("click", () => showBulkColorPicker(btnBulkColor));
+btnBulkVisibility.addEventListener("click", () => handleBulkToggleVisibility());
 
 // Search input
 searchInput.addEventListener("input", () => {
@@ -689,27 +988,34 @@ searchInput.addEventListener("input", () => {
   applySearchFilter();
 });
 
-// Escape key to deselect or clear search
-document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape") {
-    if (currentSearchQuery) {
-      searchInput.value = "";
-      currentSearchQuery = "";
-      applySearchFilter();
-    } else if (selectedSheetIds.size > 0) {
+// Keyboard shortcuts
+document.addEventListener("keydown", handleKeydown);
+
+// Listen for TAB_UPDATED from service worker
+chrome.runtime.onMessage.addListener((message) => {
+  if (message.type === "TAB_UPDATED" && message.url) {
+    const spreadsheetId = extractSpreadsheetId(message.url);
+    if (spreadsheetId && spreadsheetId !== currentSpreadsheetId) {
+      currentSpreadsheetId = spreadsheetId;
       clearSelection();
+      loadSheets();
     }
   }
 });
 
-// Listen for active tab changes
-chrome.tabs.onActivated.addListener(async () => {
-  const url = await getCurrentTabUrl();
-  if (!url) return;
-  const spreadsheetId = extractSpreadsheetId(url);
-  if (spreadsheetId && spreadsheetId !== currentSpreadsheetId) {
-    currentSpreadsheetId = spreadsheetId;
-    loadSheets();
+// Listen for active tab changes (fallback)
+chrome.tabs.onActivated.addListener(async (info) => {
+  try {
+    const tab = await chrome.tabs.get(info.tabId);
+    if (!tab.url || !tab.url.includes("/spreadsheets/d/")) return;
+    const spreadsheetId = extractSpreadsheetId(tab.url);
+    if (spreadsheetId && spreadsheetId !== currentSpreadsheetId) {
+      currentSpreadsheetId = spreadsheetId;
+      clearSelection();
+      loadSheets();
+    }
+  } catch {
+    // Tab may not be accessible
   }
 });
 
