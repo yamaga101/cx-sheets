@@ -1,0 +1,52 @@
+{
+  "manifest_version": 3,
+  "name": "Sheets Tab Manager",
+  "version": "1.4.1",
+  "description": "Manage Google Sheets tabs from a side panel - rename, reorder, color, add, delete, and duplicate.",
+  "permissions": [
+    "identity",
+    "sidePanel",
+    "storage",
+    "activeTab",
+    "tabs",
+    "alarms",
+    "nativeMessaging"
+  ],
+  "host_permissions": [
+    "https://docs.google.com/spreadsheets/*"
+  ],
+  "oauth2": {
+    "client_id": "1098345442645-3ade08bibueterbogsd4mmqbktd07fu1.apps.googleusercontent.com",
+    "scopes": [
+      "https://www.googleapis.com/auth/spreadsheets"
+    ]
+  },
+  "background": {
+    "service_worker": "src/background/service-worker.ts",
+    "type": "module"
+  },
+  "side_panel": {
+    "default_path": "src/sidepanel/index.html"
+  },
+  "action": {
+    "default_title": "Sheets Tab Manager",
+    "default_icon": {
+      "16": "src/icons/icon-16.png",
+      "48": "src/icons/icon-48.png",
+      "128": "src/icons/icon-128.png"
+    }
+  },
+  "icons": {
+    "16": "src/icons/icon-16.png",
+    "48": "src/icons/icon-48.png",
+    "128": "src/icons/icon-128.png"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://docs.google.com/spreadsheets/*"],
+      "js": ["src/content/screen-reader-guard.ts"],
+      "run_at": "document_idle"
+    }
+  ],
+  "minimum_chrome_version": "114"
+}
