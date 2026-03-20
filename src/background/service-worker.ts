@@ -1,3 +1,5 @@
+import './auto-reload';
+
 const SHEETS_URL_PATTERN = "https://docs.google.com/spreadsheets/d/";
 
 /** Check if a URL is a Google Sheets page */

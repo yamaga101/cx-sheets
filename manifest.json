@@ -1,14 +1,16 @@
 {
   "manifest_version": 3,
   "name": "Sheets Tab Manager",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "Manage Google Sheets tabs from a side panel - rename, reorder, color, add, delete, and duplicate.",
   "permissions": [
     "identity",
     "sidePanel",
     "storage",
     "activeTab",
-    "tabs"
+    "tabs",
+    "alarms",
+    "nativeMessaging"
   ],
   "host_permissions": [
     "https://docs.google.com/spreadsheets/*"

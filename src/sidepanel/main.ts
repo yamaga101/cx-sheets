@@ -966,6 +966,32 @@ btnRefresh.addEventListener("click", () => loadSheets());
 btnAdd.addEventListener("click", () => handleAdd());
 btnRetry.addEventListener("click", () => init());
 
+// Native Messaging update button
+const updateBtn = document.getElementById('updateBtn');
+if (updateBtn) {
+  updateBtn.addEventListener('click', async () => {
+    const origText = updateBtn.textContent;
+    updateBtn.textContent = '\u23F3';
+    updateBtn.style.pointerEvents = 'none';
+    try {
+      const response = await chrome.runtime.sendNativeMessage(
+        'com.yamaga101.gitpull',
+        { repo: 'sheets-tab-manager' }
+      );
+      updateBtn.textContent = response.success ? '\u2705' : '\u274C';
+      updateBtn.title = response.output || '';
+    } catch (e) {
+      updateBtn.textContent = '\u274C';
+      updateBtn.title = (e as Error).message || 'Native host not installed';
+    }
+    setTimeout(() => {
+      updateBtn.textContent = origText;
+      updateBtn.style.pointerEvents = '';
+      updateBtn.title = 'git pull で最新に更新';
+    }, 3000);
+  });
+}
+
 btnAuth.addEventListener("click", async () => {
   try {
     await getAccessToken();
