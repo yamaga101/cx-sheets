@@ -976,7 +976,7 @@ if (updateBtn) {
     try {
       const response = await chrome.runtime.sendNativeMessage(
         'com.yamaga101.gitpull',
-        { repo: 'sheets-tab-manager' }
+        { repo: 'cx-sheets' }
       );
       updateBtn.textContent = response.success ? '\u2705' : '\u274C';
       updateBtn.title = response.output || '';
