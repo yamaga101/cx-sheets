@@ -1,68 +1,67 @@
 {
-    "manifest_version": 3,
-    "name": "Sheets Tab Manager",
-    "version": "1.4.1",
-    "description": "Manage Google Sheets tabs from a side panel - rename, reorder, color, add, delete, and duplicate.",
-    "permissions": [
-        "identity",
-        "sidePanel",
-        "storage",
-        "activeTab",
-        "tabs",
-        "alarms",
-        "nativeMessaging"
-    ],
-    "host_permissions": [
+  "manifest_version": 3,
+  "name": "Sheets Tab Manager",
+  "version": "1.4.1",
+  "description": "Manage Google Sheets tabs from a side panel - rename, reorder, color, add, delete, and duplicate.",
+  "permissions": [
+    "identity",
+    "sidePanel",
+    "storage",
+    "activeTab",
+    "tabs",
+    "alarms",
+    "nativeMessaging"
+  ],
+  "host_permissions": [
+    "https://docs.google.com/spreadsheets/*"
+  ],
+  "oauth2": {
+    "client_id": "1098345442645-3ade08bibueterbogsd4mmqbktd07fu1.apps.googleusercontent.com",
+    "scopes": [
+      "https://www.googleapis.com/auth/spreadsheets"
+    ]
+  },
+  "background": {
+    "service_worker": "service-worker-loader.js",
+    "type": "module"
+  },
+  "side_panel": {
+    "default_path": "src/sidepanel/index.html"
+  },
+  "action": {
+    "default_title": "Sheets Tab Manager",
+    "default_icon": {
+      "16": "src/icons/icon-16.png",
+      "48": "src/icons/icon-48.png",
+      "128": "src/icons/icon-128.png"
+    }
+  },
+  "icons": {
+    "16": "src/icons/icon-16.png",
+    "48": "src/icons/icon-48.png",
+    "128": "src/icons/icon-128.png"
+  },
+  "content_scripts": [
+    {
+      "js": [
+        "assets/screen-reader-guard.ts-DLF1L9WQ.js"
+      ],
+      "matches": [
         "https://docs.google.com/spreadsheets/*"
-    ],
-    "oauth2": {
-        "client_id": "1098345442645-3ade08bibueterbogsd4mmqbktd07fu1.apps.googleusercontent.com",
-        "scopes": [
-            "https://www.googleapis.com/auth/spreadsheets"
-        ]
-    },
-    "background": {
-        "service_worker": "service-worker-loader.js",
-        "type": "module"
-    },
-    "side_panel": {
-        "default_path": "src/sidepanel/index.html"
-    },
-    "action": {
-        "default_title": "Sheets Tab Manager",
-        "default_icon": {
-            "16": "src/icons/icon-16.png",
-            "48": "src/icons/icon-48.png",
-            "128": "src/icons/icon-128.png"
-        }
-    },
-    "icons": {
-        "16": "src/icons/icon-16.png",
-        "48": "src/icons/icon-48.png",
-        "128": "src/icons/icon-128.png"
-    },
-    "content_scripts": [
-        {
-            "js": [
-                "assets/screen-reader-guard.ts-DLF1L9WQ.js"
-            ],
-            "matches": [
-                "https://docs.google.com/spreadsheets/*"
-            ],
-            "run_at": "document_idle"
-        }
-    ],
-    "minimum_chrome_version": "114",
-    "web_accessible_resources": [
-        {
-            "matches": [
-                "https://docs.google.com/*"
-            ],
-            "resources": [
-                "assets/screen-reader-guard.ts-DLF1L9WQ.js"
-            ],
-            "use_dynamic_url": false
-        }
-    ],
-    "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEApfOjkxiu7PCep0EcwhXAJBxGpxwkds1xmxML9EZBjIT1ZqIEBuG6OK1yLHzBG8qOWK1aqK1SoI02cqHqawN1E1NRmgRr1Gm8YEee2kSWaoaIapOVP9MAtyJ6rBYgwzrvUCJTQAdmiKi1m+Wj3W+tPDk+13QncF6+85OCgqdzBL1vGT9E7OimSJ3PCDzsd2VKygrAgiUiAG3JB4HQnZ/7Y7AHG8eASTN2rhaWmg7njXk/IKhk0lYv9UjwRqjfx8QRxwUGcNmCXXIL6ecs/568F+srv+HsP0ainpfKEaOINKO5yrd5asnqCCwsUI8nA3XOcD38NLHApLNDBSSVfZcXhwIDAQAB"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "minimum_chrome_version": "114",
+  "web_accessible_resources": [
+    {
+      "matches": [
+        "https://docs.google.com/*"
+      ],
+      "resources": [
+        "assets/screen-reader-guard.ts-DLF1L9WQ.js"
+      ],
+      "use_dynamic_url": false
+    }
+  ]
 }
