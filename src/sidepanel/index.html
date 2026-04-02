@@ -4,8 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Sheets Tab Manager</title>
-  <script type="module" crossorigin src="/assets/index.html-CEWrSzZk.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/index-agitqJGc.css">
+  <script type="module" crossorigin src="/assets/index.html-ZrozATdi.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-CF5u2Hkw.css">
 </head>
 <body>
   <header class="header">
@@ -25,10 +25,12 @@
   </header>
 
   <div class="search-bar">
-    <svg class="search-bar__icon" width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-      <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85zm-5.242.156a5 5 0 1 1 0-10 5 5 0 0 1 0 10z"/>
-    </svg>
-    <input id="search-input" class="search-bar__input" type="text" placeholder="シートを検索..." />
+    <div class="search-bar__inner">
+      <svg class="search-bar__icon" width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+        <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85zm-5.242.156a5 5 0 1 1 0-10 5 5 0 0 1 0 10z"/>
+      </svg>
+      <input id="search-input" class="search-bar__input" type="text" placeholder="シートを検索... ( / )" />
+    </div>
   </div>
 
   <div id="loading" class="loading" hidden>
@@ -42,25 +44,63 @@
   </div>
 
   <div id="auth-required" class="auth-required" hidden>
+    <svg width="48" height="48" viewBox="0 0 48 48" fill="none" style="margin-bottom: 4px;">
+      <circle cx="24" cy="24" r="22" fill="#e7e8e9"/>
+      <path d="M24 14a6 6 0 1 1 0 12 6 6 0 0 1 0-12zm0 15c6.63 0 12 2.69 12 6v2H12v-2c0-3.31 5.37-6 12-6z" fill="#727785"/>
+    </svg>
     <p>Google アカウントにログインしてください。</p>
     <button id="btn-auth" class="btn btn--primary">ログイン</button>
   </div>
 
   <div id="not-sheets" class="not-sheets" hidden>
+    <svg width="48" height="48" viewBox="0 0 48 48" fill="none" style="margin-bottom: 4px;">
+      <rect x="8" y="6" width="32" height="36" rx="4" fill="#e7e8e9"/>
+      <rect x="14" y="14" width="20" height="2" rx="1" fill="#c1c6d6"/>
+      <rect x="14" y="20" width="14" height="2" rx="1" fill="#c1c6d6"/>
+      <rect x="14" y="26" width="18" height="2" rx="1" fill="#c1c6d6"/>
+      <rect x="14" y="32" width="10" height="2" rx="1" fill="#c1c6d6"/>
+    </svg>
     <p>Google Sheets のページを開いてください。</p>
   </div>
 
   <ul id="sheet-list" class="sheet-list"></ul>
 
   <div id="bulk-bar" class="bulk-bar" hidden>
-    <span id="bulk-count" class="bulk-bar__count"></span>
+    <div class="bulk-bar__top">
+      <span id="bulk-count" class="bulk-bar__count"></span>
+      <button id="btn-bulk-deselect" class="btn--deselect" title="選択解除">解除</button>
+    </div>
     <div class="bulk-bar__actions">
-      <button id="btn-bulk-color" class="btn btn--small btn--secondary" title="一括色変更">色</button>
-      <button id="btn-bulk-visibility" class="btn btn--small btn--secondary" title="一括表示/非表示">表示</button>
-      <button id="btn-bulk-move-top" class="btn btn--small btn--secondary" title="先頭へ移動">先頭へ</button>
-      <button id="btn-bulk-move-bottom" class="btn btn--small btn--secondary" title="末尾へ移動">末尾へ</button>
-      <button id="btn-bulk-delete" class="btn btn--small btn--danger" title="一括削除">削除</button>
-      <button id="btn-bulk-deselect" class="btn btn--small btn--secondary" title="選択解除">解除</button>
+      <button id="btn-bulk-color" class="bulk-bar__btn" title="一括色変更">
+        <span class="bulk-bar__btn-icon">
+          <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor"><circle cx="8" cy="8" r="6"/></svg>
+        </span>
+        <span class="bulk-bar__btn-label">色</span>
+      </button>
+      <button id="btn-bulk-visibility" class="bulk-bar__btn" title="一括表示/非表示">
+        <span class="bulk-bar__btn-icon">
+          <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor"><path d="M8 3C4.364 3 1.258 5.073 0 8c1.258 2.927 4.364 5 8 5s6.742-2.073 8-5c-1.258-2.927-4.364-5-8-5zm0 8.5A3.5 3.5 0 1 1 8 4.5a3.5 3.5 0 0 1 0 7zm0-5.5a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"/></svg>
+        </span>
+        <span class="bulk-bar__btn-label">表示</span>
+      </button>
+      <button id="btn-bulk-move-top" class="bulk-bar__btn" title="先頭へ移動">
+        <span class="bulk-bar__btn-icon">
+          <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor"><path d="M4 6h8V4H4v2zm0-4h8V0H4v2zm4 6l-4 4h8l-4-4z" transform="rotate(180 8 8)"/></svg>
+        </span>
+        <span class="bulk-bar__btn-label">先頭へ</span>
+      </button>
+      <button id="btn-bulk-move-bottom" class="bulk-bar__btn" title="末尾へ移動">
+        <span class="bulk-bar__btn-icon">
+          <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor"><path d="M4 6h8V4H4v2zm0-4h8V0H4v2zm4 6l-4 4h8l-4-4z"/></svg>
+        </span>
+        <span class="bulk-bar__btn-label">末尾へ</span>
+      </button>
+      <button id="btn-bulk-delete" class="bulk-bar__btn bulk-bar__btn--danger" title="一括削除">
+        <span class="bulk-bar__btn-icon">
+          <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor"><path d="M5.5 1a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zM3 3.5a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1H12v9a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V4h-.5a.5.5 0 0 1-.5-.5zM5 4v9h6V4H5z"/></svg>
+        </span>
+        <span class="bulk-bar__btn-label">削除</span>
+      </button>
     </div>
   </div>
 

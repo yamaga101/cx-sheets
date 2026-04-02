@@ -1,7 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Sheets Tab Manager",
-  "version": "1.4.1",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA1KtgDiN3wQhJVeEgO2+5divXSi9NFv39Ye96swQWBEQx3gXNVKtyhAiWKGMnpQqnS5CwNGPPOQN7iOaYpfUUsbUKmzOP8k1ib2W4DcGxcxo4s79nNiNedmhfATXsHqFrjjP+AbecH78UUoKEeTtwi33J9b7s+LADNJw6oGmed0Ho/i4wVGHKFXcZoRUGLzyDceR+r4Ap537p9AwTviF7CZHQTM7EkEbI8CJp3gU/hWO8fzn1SFOukNreCOdaq4RFcJrHUaKC9Kt8BtIJPmxhFC0KCpoyVtjkb5yvi1R55L1KY7j8HR0J5+QbW8VjeNbhCJcnYhK3GUUzGf/SU4czbwIDAQAB",
+  "version": "1.5.0",
   "description": "Manage Google Sheets tabs from a side panel - rename, reorder, color, add, delete, and duplicate.",
   "permissions": [
     "identity",
@@ -16,7 +17,7 @@
     "https://docs.google.com/spreadsheets/*"
   ],
   "oauth2": {
-    "client_id": "1098345442645-3ade08bibueterbogsd4mmqbktd07fu1.apps.googleusercontent.com",
+    "client_id": "403660380335-9jphht0mhtuah874io5g3u1lps0lmp4m.apps.googleusercontent.com",
     "scopes": [
       "https://www.googleapis.com/auth/spreadsheets"
     ]
